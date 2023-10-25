@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 	"time"
-
+	"math/rand"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
@@ -13,17 +13,19 @@ const WIN_WIDTH, WIN_HEIGHT = 900, 900
 const GAME_WIDTH, GAME_HEIGHT = 100, 100
 const WIDTH_SCALE, HEIGHT_SCALE = WIN_WIDTH/GAME_WIDTH, WIN_HEIGHT/GAME_HEIGHT
 
-const FRAME_RATE = 500
+const FRAME_RATE = 400
 
 const ( //draw methods
 	DRAW_DIRT = iota 
 	DRAW_AIR
+	DRAW_WALL
 	END_DRAW //used for like switching
 )
 
 const (
 	AIR = iota
 	DIRT
+	WALL
 	WATER
 )
 
@@ -43,6 +45,9 @@ func drawWorld(world *[][]uint8, renderer *sdl.Renderer) {
 			case DIRT:
 				renderer.SetDrawColor(255, 255, 0, 255)
 				renderer.DrawPoint(int32(i_row), int32(i_col))
+			case WALL:
+				renderer.SetDrawColor(130, 130, 130, 255)
+				renderer.DrawPoint(int32(i_row), int32(i_col))
 			}
 		}
 	}
@@ -57,13 +62,25 @@ func updateWorld(world *[][]uint8) {
 				rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
 				leftX, leftY := i_row-1, i_col+1
 				leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
+				canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
+				canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR
+				
 				if i_col < GAME_HEIGHT-1 && (*world)[i_row][i_col+1] == AIR {
 					(*world)[i_row][i_col+1] = DIRT
 					(*world)[i_row][i_col] = AIR
-				} else if rightInBounds && (*world)[rightX][rightY] == AIR {
+				} else if canMoveLeft && canMoveRight {
+					direction := rand.Intn(21)
+					if direction <= 10{
+						(*world)[rightX][rightY] = DIRT
+						(*world)[i_row][i_col] = AIR
+					} else {
+						(*world)[leftX][leftY] = DIRT
+						(*world)[i_row][i_col] = AIR
+					}
+				} else if canMoveRight {
 					(*world)[rightX][rightY] = DIRT
 					(*world)[i_row][i_col] = AIR
-				}  else if leftInBounds && (*world)[leftX][leftY] == AIR {
+				}  else if canMoveLeft {
 					(*world)[leftX][leftY] = DIRT
 					(*world)[i_row][i_col] = AIR
 				}
@@ -137,18 +154,26 @@ func run() (err error) {
 
 			case *sdl.KeyboardEvent:
 				if t.Type == sdl.KEYUP {
-					drawType = (drawType+1) % END_DRAW
-					fmt.Println("Draw Type: ", drawType)
+					key := t.Keysym
+					//fmt.Printf("key: %v\n", key.Sym)
+					if key.Sym == 114 {
+						world = setupWorld(GAME_WIDTH, GAME_HEIGHT)
+					} else {
+						drawType = (drawType+1) % END_DRAW
+						fmt.Println("Draw Type: ", drawType)
+					}
 				}
 			}
 		}
-
+		
 		if dragging {
 			switch drawType {
-			case DIRT:
+			case DRAW_DIRT:
 				world[mouseX][mouseY] = DIRT
-			case AIR:
+			case DRAW_AIR:
 				world[mouseX][mouseY] = AIR
+			case DRAW_WALL:
+				world[mouseX][mouseY] = WALL
 			}
 		}
 
