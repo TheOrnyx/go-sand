@@ -19,8 +19,11 @@ const ( //draw methods
 	DRAW_DIRT = iota 
 	DRAW_AIR
 	DRAW_WALL
+	DRAW_WATER
 	END_DRAW //used for like switching
 )
+
+var drawNameList = [...]string{"Dirt", "Air", "Wall", "Water"}
 
 const (
 	AIR = iota
@@ -48,8 +51,76 @@ func drawWorld(world *[][]uint8, renderer *sdl.Renderer) {
 			case WALL:
 				renderer.SetDrawColor(130, 130, 130, 255)
 				renderer.DrawPoint(int32(i_row), int32(i_col))
+			case WATER:
+				renderer.SetDrawColor(0, 0, 255, 200)
+				renderer.DrawPoint(int32(i_row), int32(i_col))
 			}
 		}
+	}
+}
+
+func updateWorldDirt(world *[][]uint8, i_row, i_col int) {
+	rightX, rightY := i_row+1, i_col+1
+	rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
+	leftX, leftY := i_row-1, i_col+1
+	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
+	canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
+	canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR
+	canMoveBelow := i_col < GAME_HEIGHT-1 && ((*world)[i_row][i_col+1] == AIR || (*world)[i_row][i_col+1] == WATER)
+	
+	if canMoveBelow {
+		if (*world)[i_row][i_col+1] == WATER {
+			(*world)[i_row][i_col+1] = DIRT
+			(*world)[i_row][i_col] = WATER
+		} else {
+			(*world)[i_row][i_col+1] = DIRT
+			(*world)[i_row][i_col] = AIR
+		}
+	} else if canMoveLeft && canMoveRight {
+		direction := rand.Intn(21)
+		if direction <= 10{
+			(*world)[rightX][rightY] = DIRT
+			(*world)[i_row][i_col] = AIR
+		} else {
+			(*world)[leftX][leftY] = DIRT
+			(*world)[i_row][i_col] = AIR
+		}
+	} else if canMoveRight {
+		(*world)[rightX][rightY] = DIRT
+		(*world)[i_row][i_col] = AIR
+	}  else if canMoveLeft {
+		(*world)[leftX][leftY] = DIRT
+		(*world)[i_row][i_col] = AIR
+	}
+}
+
+func updateWorldWater(world *[][]uint8, i_row, i_col int){
+	rightX, rightY := i_row+1, i_col
+	rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
+	leftX, leftY := i_row-1, i_col
+	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
+	canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
+	canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR	
+
+	if i_col < GAME_HEIGHT-1 && (*world)[i_row][i_col+1] == AIR {
+		(*world)[i_row][i_col+1] = WATER
+		(*world)[i_row][i_col] = AIR
+
+	} else if canMoveLeft && canMoveRight {
+		direction := rand.Intn(21)
+		if direction <= 10{
+			(*world)[rightX][rightY] = WATER
+			(*world)[i_row][i_col] = AIR
+		} else {
+			(*world)[leftX][leftY] = WATER
+			(*world)[i_row][i_col] = AIR
+		}
+	} else if canMoveRight {
+		(*world)[rightX][rightY] = WATER
+		(*world)[i_row][i_col] = AIR
+	} else if canMoveLeft {
+		(*world)[leftX][leftY] = WATER
+		(*world)[i_row][i_col] = AIR
 	}
 }
 
@@ -58,32 +129,9 @@ func updateWorld(world *[][]uint8) {
 		for i_col := GAME_WIDTH-2; i_col >= 0; i_col-- {
 			switch (*world)[i_row][i_col] {
 			case DIRT:
-				rightX, rightY := i_row+1, i_col+1
-				rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
-				leftX, leftY := i_row-1, i_col+1
-				leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
-				canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
-				canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR
-				
-				if i_col < GAME_HEIGHT-1 && (*world)[i_row][i_col+1] == AIR {
-					(*world)[i_row][i_col+1] = DIRT
-					(*world)[i_row][i_col] = AIR
-				} else if canMoveLeft && canMoveRight {
-					direction := rand.Intn(21)
-					if direction <= 10{
-						(*world)[rightX][rightY] = DIRT
-						(*world)[i_row][i_col] = AIR
-					} else {
-						(*world)[leftX][leftY] = DIRT
-						(*world)[i_row][i_col] = AIR
-					}
-				} else if canMoveRight {
-					(*world)[rightX][rightY] = DIRT
-					(*world)[i_row][i_col] = AIR
-				}  else if canMoveLeft {
-					(*world)[leftX][leftY] = DIRT
-					(*world)[i_row][i_col] = AIR
-				}
+				updateWorldDirt(&*world, i_row, i_col)
+			case WATER:
+				updateWorldWater(&*world, i_row, i_col)
 			}
 		}
 	}
@@ -92,7 +140,6 @@ func updateWorld(world *[][]uint8) {
 func clampMouse (mouseX *int32, mouseY *int32) {
 	*mouseX /= WIDTH_SCALE
 	*mouseY /= HEIGHT_SCALE
-
 	*mouseX = max(min(*mouseX, GAME_WIDTH-1), 0)
 	*mouseY = max(min(*mouseY, GAME_HEIGHT-1), 0)
 }
@@ -119,7 +166,7 @@ func run() (err error) {
 	renderer.SetScale(WIDTH_SCALE, HEIGHT_SCALE)
 	
 	running := true
-	drawType := DIRT
+	drawType := DRAW_DIRT
 	world := setupWorld(GAME_WIDTH, GAME_HEIGHT)
 	// var brushSize int32 = 0
 	var frameStart time.Time
@@ -160,7 +207,7 @@ func run() (err error) {
 						world = setupWorld(GAME_WIDTH, GAME_HEIGHT)
 					} else {
 						drawType = (drawType+1) % END_DRAW
-						fmt.Println("Draw Type: ", drawType)
+						fmt.Println("Draw Type: ", drawNameList[drawType])
 					}
 				}
 			}
@@ -174,6 +221,8 @@ func run() (err error) {
 				world[mouseX][mouseY] = AIR
 			case DRAW_WALL:
 				world[mouseX][mouseY] = WALL
+			case DRAW_WATER:
+				world[mouseX][mouseY] = WATER
 			}
 		}
 
