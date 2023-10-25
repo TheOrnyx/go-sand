@@ -64,8 +64,8 @@ func updateWorldDirt(world *[][]uint8, i_row, i_col int) {
 	rightInBounds := rightY >= 0 && rightY <= GAME_HEIGHT-1 && rightX > 0 && rightX <= GAME_WIDTH-1
 	leftX, leftY := i_col-1, i_row+1
 	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
-	canMoveRight := rightInBounds && (*world)[rightY][rightX] == AIR
-	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR
+	canMoveRight := rightInBounds && (*world)[rightY][rightX] == AIR && (*world)[i_row][rightX] == AIR
+	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR && (*world)[i_row][leftX] == AIR
 	canMoveBelow := i_row < GAME_HEIGHT-1 && ((*world)[i_row+1][i_col] == AIR || (*world)[i_row+1][i_col] == WATER)
 	
 	if canMoveBelow {
@@ -100,7 +100,7 @@ func updateWorldWater(world *[][]uint8, i_row, i_col int){
 	leftX, leftY := i_col-1, i_row
 	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
 	canMoveRight := rightInBounds && (*world)[rightY][rightX] == AIR
-	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR	
+	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR 
 
 	if i_row < GAME_HEIGHT && (*world)[i_row+1][i_col] == AIR {
 		(*world)[i_row+1][i_col] = WATER
