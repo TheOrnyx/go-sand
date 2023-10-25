@@ -13,7 +13,7 @@ const WIN_WIDTH, WIN_HEIGHT = 900, 900
 const GAME_WIDTH, GAME_HEIGHT = 100, 100
 const WIDTH_SCALE, HEIGHT_SCALE = WIN_WIDTH/GAME_WIDTH, WIN_HEIGHT/GAME_HEIGHT
 
-const FRAME_RATE = 400
+const FRAME_RATE = 300
 
 const ( //draw methods
 	DRAW_DIRT = iota 
@@ -42,91 +42,98 @@ func setupWorld(w, h int32) [][]uint8 {
 }
 
 func drawWorld(world *[][]uint8, renderer *sdl.Renderer) {
-	for i_row := 0; i_row < len((*world)); i_row++ {
-		for i_col := 0; i_col < len((*world)[0]); i_col++ {
+	for i_row := 0; i_row < GAME_HEIGHT; i_row++ {
+		for i_col := 0; i_col < GAME_WIDTH; i_col++ {
 			switch (*world)[i_row][i_col] {
 			case DIRT:
 				renderer.SetDrawColor(255, 255, 0, 255)
-				renderer.DrawPoint(int32(i_row), int32(i_col))
+				renderer.DrawPoint(int32(i_col), int32(i_row))
 			case WALL:
 				renderer.SetDrawColor(130, 130, 130, 255)
-				renderer.DrawPoint(int32(i_row), int32(i_col))
+				renderer.DrawPoint(int32(i_col), int32(i_row))
 			case WATER:
-				renderer.SetDrawColor(0, 0, 255, 200)
-				renderer.DrawPoint(int32(i_row), int32(i_col))
+				renderer.SetDrawColor(0, 0, 255, 10)
+				renderer.DrawPoint(int32(i_col), int32(i_row))
 			}
 		}
 	}
 }
 
 func updateWorldDirt(world *[][]uint8, i_row, i_col int) {
-	rightX, rightY := i_row+1, i_col+1
-	rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
-	leftX, leftY := i_row-1, i_col+1
+	rightX, rightY := i_col+1, i_row+1
+	rightInBounds := rightY >= 0 && rightY <= GAME_HEIGHT-1 && rightX > 0 && rightX <= GAME_WIDTH-1
+	leftX, leftY := i_col-1, i_row+1
 	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
-	canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
-	canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR
-	canMoveBelow := i_col < GAME_HEIGHT-1 && ((*world)[i_row][i_col+1] == AIR || (*world)[i_row][i_col+1] == WATER)
+	canMoveRight := rightInBounds && (*world)[rightY][rightX] == AIR
+	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR
+	canMoveBelow := i_row < GAME_HEIGHT-1 && ((*world)[i_row+1][i_col] == AIR || (*world)[i_row+1][i_col] == WATER)
 	
 	if canMoveBelow {
-		if (*world)[i_row][i_col+1] == WATER {
-			(*world)[i_row][i_col+1] = DIRT
+		if (*world)[i_row+1][i_col] == WATER {
+			(*world)[i_row+1][i_col] = DIRT
 			(*world)[i_row][i_col] = WATER
 		} else {
-			(*world)[i_row][i_col+1] = DIRT
+			(*world)[i_row+1][i_col] = DIRT
 			(*world)[i_row][i_col] = AIR
 		}
 	} else if canMoveLeft && canMoveRight {
 		direction := rand.Intn(21)
 		if direction <= 10{
-			(*world)[rightX][rightY] = DIRT
+			(*world)[rightY][rightX] = DIRT
 			(*world)[i_row][i_col] = AIR
 		} else {
-			(*world)[leftX][leftY] = DIRT
+			(*world)[leftY][leftX] = DIRT
 			(*world)[i_row][i_col] = AIR
 		}
 	} else if canMoveRight {
-		(*world)[rightX][rightY] = DIRT
+		(*world)[rightY][rightX] = DIRT
 		(*world)[i_row][i_col] = AIR
 	}  else if canMoveLeft {
-		(*world)[leftX][leftY] = DIRT
+		(*world)[leftY][leftX] = DIRT
 		(*world)[i_row][i_col] = AIR
 	}
 }
 
 func updateWorldWater(world *[][]uint8, i_row, i_col int){
-	rightX, rightY := i_row+1, i_col
+	rightX, rightY := i_col+1, i_row
 	rightInBounds := rightX >= 0 && rightX <= GAME_WIDTH-1 && rightY > 0 && rightY <= GAME_HEIGHT-1
-	leftX, leftY := i_row-1, i_col
+	leftX, leftY := i_col-1, i_row
 	leftInBounds := leftX >= 0 && leftX <= GAME_WIDTH-1 && leftY > 0 && leftY <= GAME_HEIGHT-1
-	canMoveRight := rightInBounds && (*world)[rightX][rightY] == AIR
-	canMoveLeft := leftInBounds && (*world)[leftX][leftY] == AIR	
+	canMoveRight := rightInBounds && (*world)[rightY][rightX] == AIR
+	canMoveLeft := leftInBounds && (*world)[leftY][leftX] == AIR	
 
-	if i_col < GAME_HEIGHT-1 && (*world)[i_row][i_col+1] == AIR {
-		(*world)[i_row][i_col+1] = WATER
+	if i_row < GAME_HEIGHT && (*world)[i_row+1][i_col] == AIR {
+		(*world)[i_row+1][i_col] = WATER
 		(*world)[i_row][i_col] = AIR
 
 	} else if canMoveLeft && canMoveRight {
-		direction := rand.Intn(21)
-		if direction <= 10{
-			(*world)[rightX][rightY] = WATER
+		direction := rand.Intn(21) 
+		if direction <= 5 { //random move direction, probably have it so it's weighted by free stuff
+			(*world)[rightY][rightX] = WATER
 			(*world)[i_row][i_col] = AIR
 		} else {
-			(*world)[leftX][leftY] = WATER
+			(*world)[leftY][leftX] = WATER
 			(*world)[i_row][i_col] = AIR
 		}
 	} else if canMoveRight {
-		(*world)[rightX][rightY] = WATER
+		(*world)[rightY][rightX] = WATER
 		(*world)[i_row][i_col] = AIR
 	} else if canMoveLeft {
-		(*world)[leftX][leftY] = WATER
+		(*world)[leftY][leftX] = WATER
 		(*world)[i_row][i_col] = AIR
 	}
 }
 
+func debugPrintWorld(world *[][]uint8) {
+	for i := range *world {
+		fmt.Println((*world)[i])
+	}
+
+}
+
 func updateWorld(world *[][]uint8) {
-	for i_row := GAME_HEIGHT-1; i_row >= 0; i_row-- {
-		for i_col := GAME_WIDTH-2; i_col >= 0; i_col-- {
+	for i_row := GAME_HEIGHT-2; i_row >= 0; i_row-- {
+		for i_col := GAME_WIDTH-1; i_col >= 0; i_col-- {
 			switch (*world)[i_row][i_col] {
 			case DIRT:
 				updateWorldDirt(&*world, i_row, i_col)
@@ -163,26 +170,21 @@ func run() (err error) {
 		log.Fatal(err)
 	}
 	defer renderer.Destroy()
-	renderer.SetScale(WIDTH_SCALE, HEIGHT_SCALE)
+	renderer.SetScale(WIDTH_SCALE, HEIGHT_SCALE)	
+	running, paused := true, false
 	
-	running := true
 	drawType := DRAW_DIRT
 	world := setupWorld(GAME_WIDTH, GAME_HEIGHT)
-	// var brushSize int32 = 0
-	var frameStart time.Time
-	var elapsedTime float32
+	frameDuration := time.Second / FRAME_RATE
 	dragging := false
-	
 	for running {
-		frameStart = time.Now()
+		startTime := time.Now()
 		renderer.SetDrawColor(0, 0, 0, 0)
 		renderer.Clear()
-
 		mouseX, mouseY, _ := sdl.GetMouseState()
 		clampMouse(&mouseX, &mouseY)
-		
-		drawWorld(&world, renderer)
-		updateWorld(&world)
+		drawWorld(&world, &*renderer)
+		if !paused {updateWorld(&world)}
 		renderer.Present()
 		
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -202,9 +204,13 @@ func run() (err error) {
 			case *sdl.KeyboardEvent:
 				if t.Type == sdl.KEYUP {
 					key := t.Keysym
-					//fmt.Printf("key: %v\n", key.Sym)
+					// fmt.Printf("key: %v\n", key.Sym)
 					if key.Sym == 114 {
 						world = setupWorld(GAME_WIDTH, GAME_HEIGHT)
+					} else if key.Sym == 112 {
+						paused = !paused
+						fmt.Println("Paused is: ", paused)
+						//debugPrintWorld(&world)
 					} else {
 						drawType = (drawType+1) % END_DRAW
 						fmt.Println("Draw Type: ", drawNameList[drawType])
@@ -216,20 +222,19 @@ func run() (err error) {
 		if dragging {
 			switch drawType {
 			case DRAW_DIRT:
-				world[mouseX][mouseY] = DIRT
+				world[mouseY][mouseX] = DIRT
 			case DRAW_AIR:
-				world[mouseX][mouseY] = AIR
+				world[mouseY][mouseX] = AIR
 			case DRAW_WALL:
-				world[mouseX][mouseY] = WALL
+				world[mouseY][mouseX] = WALL
 			case DRAW_WATER:
-				world[mouseX][mouseY] = WATER
+				world[mouseY][mouseX] = WATER
 			}
 		}
-
-		elapsedTime = float32(time.Since(frameStart).Seconds() * 1000)
-		delayTime := float32(1000/FRAME_RATE) - elapsedTime
-		if delayTime > 0 {
-			sdl.Delay(uint32(delayTime))
+		elapsedTime := time.Since(startTime)
+		if elapsedTime < frameDuration {
+			remainingTime := frameDuration - elapsedTime
+			time.Sleep(remainingTime)
 		}
 	}
 	return
