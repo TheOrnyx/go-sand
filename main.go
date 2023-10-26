@@ -11,6 +11,7 @@ import (
 	"time"
 	"math/rand"
 	"github.com/veandco/go-sdl2/sdl"
+	"github.com/veandco/go-sdl2/ttf"
 )
 
 const WIN_WIDTH, WIN_HEIGHT = 800, 800
@@ -18,6 +19,11 @@ const GAME_WIDTH, GAME_HEIGHT = 200, 200
 const WIDTH_SCALE, HEIGHT_SCALE = WIN_WIDTH/GAME_WIDTH, WIN_HEIGHT/GAME_HEIGHT
 
 const FRAME_RATE = 150
+
+const (
+	fontPath = "/usr/share/fonts/noto/NotoSans-Regular.ttf"
+	fontSize = 20
+)
 
 const ( //draw methods
 	DRAW_AIR = iota
@@ -47,6 +53,38 @@ func setupWorld(w, h int32) [][]uint8 {
 	}
 	
 	return world
+}
+
+// drawInfo ...
+func drawInfo(font *ttf.Font, renderer *sdl.Renderer, drawType int)  {
+	var text *sdl.Surface
+	var err error
+	message := fmt.Sprintf("Current draw: %v", drawNameList[drawType])
+	if text, err = font.RenderUTF8Blended(message, sdl.Color{R:255,G:255,B:255,A:255}); err != nil {
+		return
+	}
+	defer text.Free()
+
+	tex, err := renderer.CreateTextureFromSurface(text)
+	if err != nil{
+		log.Fatal(err)
+	}
+	defer tex.Destroy()
+
+	_, _, width, height, _ := tex.Query()
+	destRect := &sdl.Rect{X: 0, Y: 0, W: width/4, H: height/4}
+	renderer.Copy(tex, nil, destRect)
+}
+
+// drawInitInfo draws the basic info about the program
+// Doesn't work for some reason on a window manager (at least on xmonad)
+// so if it doesn't work then it just prints to stdout
+func drawInitInfo(window *sdl.Window){
+	message := "right/left = next/prev type\n -/= = make brush size bigger or smaller\n p = toggle pause"
+	if err := sdl.ShowSimpleMessageBox(sdl.MESSAGEBOX_INFORMATION, "welcome to sand", message, nil); err != nil {
+		fmt.Println("MessageBox either doesn't work\n Or you're on a WM lmao\n printing to Term")
+		fmt.Println(message)
+	}
 }
 
 func drawMouse(renderer *sdl.Renderer, mouseX, mouseY int32, brushSize uint8) {
@@ -91,7 +129,7 @@ func drawWorld(world *[][]uint8, renderer *sdl.Renderer) {
 
 func updateWorldFire(world *[][]uint8, i_row, i_col int){
 	var spreadChance int32
-	var airSpreadChance, woodSpreadChance, dieChance int32 = 1, 7, 4
+	var airSpreadChance, woodSpreadChance, dieChance int32 = 1, 6, 4
 	rightX, rightY := i_col+1, i_row
 	leftX, leftY := i_col-1, i_row
 	rightInBounds, leftInBounds := rightX >= 0 && rightX < GAME_WIDTH, leftX >= 0 && leftX < GAME_WIDTH
@@ -199,7 +237,7 @@ func updateWorldWater(world *[][]uint8, i_row, i_col int, compWorld *[][]uint8){
 		(*compWorld)[i_row+1][i_col] = 1
 	} else if canMoveLeft && canMoveRight {
 		direction := rand.Intn(21)
-		if direction < 10 { //random move direction, probably have it so it's weighted by free stuff
+		if direction < 7 { //random move direction, probably have it so it's weighted by free stuff
 			(*world)[rightY][rightX] = WATER
 			(*world)[i_row][i_col] = AIR
 			(*compWorld)[rightY][rightX] = 1
@@ -223,7 +261,6 @@ func debugPrintWorld(world *[][]uint8) {
 	for i := range *world {
 		fmt.Println((*world)[i])
 	}
-
 }
 
 func updateWorld(world *[][]uint8) {
@@ -263,6 +300,12 @@ func addCell(world *[][]uint8, mouseX, mouseY, drawType int, brushSize uint8) {
 }
 
 func run() (err error) {
+	var font *ttf.Font
+	if err = ttf.Init(); err != nil {
+		log.Fatal(err)
+	}
+	defer ttf.Quit()
+	
 	if err := sdl.Init(sdl.INIT_EVERYTHING); err != nil {
 		log.Fatal(err)
 	}
@@ -284,7 +327,14 @@ func run() (err error) {
 	defer renderer.Destroy()
 	renderer.SetScale(WIDTH_SCALE, HEIGHT_SCALE)
 	renderer.SetDrawBlendMode(sdl.BLENDMODE_BLEND)
+
+	font, err = ttf.OpenFont(fontPath, fontSize)
+	if err != nil {
+		log.Fatal("Unable to load font")
+	}
+	
 	running, paused := true, false
+	drawInitInfo(&*window)
 	
 	drawType := DRAW_DIRT
 	var brushSize uint8 = 1
@@ -300,6 +350,7 @@ func run() (err error) {
 		drawWorld(&world, &*renderer)
 		if !paused {updateWorld(&world)}
 		drawMouse(&*renderer, mouseX, mouseY, brushSize)
+		drawInfo(font, renderer, drawType)
 		renderer.Present()
 		
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -332,9 +383,19 @@ func run() (err error) {
 					} else if key.Sym == 45 { // '-'
 						brushSize -= 1
 						fmt.Println("Brush Size: ", brushSize)
-					} else {
+					} else if key.Sym == 48 {
+						brushSize = 1
+						fmt.Println("Brush Size: ", brushSize)
+					} else if key.Sym == 1073741903 {
 						drawType = (drawType+1) % END_DRAW
 						fmt.Println("Draw Type: ", drawNameList[drawType])
+					} else if key.Sym == 1073741904 {
+						newDraw := drawType-1
+						if newDraw < 0 {newDraw = END_DRAW-1}
+						drawType = newDraw
+						fmt.Println("Draw Type: ", drawNameList[drawType])
+					} else {
+						
 					}
 				}
 			}
